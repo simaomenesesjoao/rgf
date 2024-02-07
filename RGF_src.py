@@ -5,7 +5,7 @@
 # 
 # Code to implement RGF in 2D. This notebook is used to produce a python script which contains the library
 
-# In[42]:
+# In[1]:
 
 
 # to convert to script run
@@ -18,7 +18,6 @@ if __name__== "__main__":
 
 from multiprocessing import Pool
 import numpy as np
-import matplotlib.pyplot as plt
 import sys
 
 sys.path.append('/home/simao/codes/tight-binding-test/src/')
