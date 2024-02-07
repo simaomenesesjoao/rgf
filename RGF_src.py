@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # Recursive Green Function 2D - graphene + Rashba + mag - general
+# # <font size=7> Recursive Green Function 2D </font> 
 # 
-# Code to implement RGF<br>
-# 
-# FIX: I need to make sure whether it's u or u.transpose()
+# Code to implement RGF in 2D. This notebook is used to produce a python script which contains the library
 
-# In[3]:
+# In[42]:
 
 
 # to convert to script run
@@ -22,28 +20,32 @@ from multiprocessing import Pool
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-sys.path.insert(1, '/home/simao/projects_sync/codes/tight-binding-test/src/')
+
+sys.path.append('/home/simao/codes/tight-binding-test/src/')
 import band_structure as bs
 
 
-# # <b>Hamiltonian:</b> 
+# # Hamiltonian
 # 
-# The indexation is: i\*C + j\*No + oo where C is the cross-section (W\*No), No is the number of orbitals 
+# This section contains:
+# 1. Functions to define the Hamiltonian of the system. This code uses the recursive Green's function method, so the system is assumed to be a nanoribbon (sample + leads) and so has to be defined in terms of slices. The Hamiltonian has to be specified in terms of hoppings within the same slice ($h$) or to the next slice ($u$). 
+# 2. Functions to define the velocity and spin operators from this Hamiltonian. Be careful with the basis ordering when dealing with spin.
+# 3. Functions that build a finite Hamiltonian, which explicitly includes finite leads. This is for testing purposes
+# 
+# The indexation is: i\*C + j\*No + oo where C is the cross-section (W\*No), No is the number of orbitals. The term 'orbitals' encompasses spin
 
-# ## General lattice, hoppings defined in one unit cell
+# ## Define generic Hamiltonian in the nanoribbon from arbitrary hoppings
 
-# In[ ]:
+# In[3]:
 
 
 def hamiltonian_UC(W, hops, orbs_dic, twist, k):
     
     No = len(orbs_dic.keys())
-    
-    
+        
     C = W*No
     h = np.zeros([C,C], dtype=complex)
     u = np.zeros([C,C], dtype=complex)
-
 
     for hop in hops:
 
@@ -77,12 +79,16 @@ def hamiltonian_UC(W, hops, orbs_dic, twist, k):
 
 
 
-# In[ ]:
+# In[4]:
 
 
 def set_system(self, ham_struct, width, length, twist, k):
     
     orbs_dic, pos, prim, hops = ham_struct
+    self.orbs_dic = orbs_dic
+    self.hops = hops
+    self.pos = pos
+    self.prim = prim
     
     No = len(orbs_dic.keys())
     
@@ -92,1227 +98,32 @@ def set_system(self, ham_struct, width, length, twist, k):
     self.S = length
     self.No = No
     self.C = No*width
-    self.pos = pos
-    self.prim = prim
+    
     
     # Information about the Hamiltonian
     h,u = hamiltonian_UC(width, hops, orbs_dic, twist, k)
-    # Anderson = np.random.random([self.C,self.S])*ander
 
     # set the relevant quantities
     self.set_h(h,u)
     # self.Anderson = Anderson
 
 
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-def set_general_graphene_nanoribbon_rashba(self, 
-            width, length, twist, k, Anderson=-1, λex=0.4, λR=0.3):
-    #  _ 
-    # / \   Graphene unit cell orientation
-    # \_/
-
-    # primitive vectors
-    a1 = np.sqrt(3)*np.array([np.sqrt(3)/2, 0.5])
-    a2 = np.sqrt(3)*np.array([0,1])
-    prims = [a1,  a2]
-
-    orbs = [           "Au",            "Ad",            "Bu",            "Bd"]
-    pos  = [np.array([0,0]), np.array([0,0]), np.array([1,0]), np.array([1,0])]
-    No = len(orbs)
-
-    # Build the hoppings from the tight-binding functionality
-    φ = 0
-    t = -1
-    hops = []
-    hops += bs.graphene(t)
-    hops += bs.rashba_phase(λR, φ)
-    hops += bs.magnetization(λex)
-    
-    
-    duplicator = hop_utils()
-
-    duplicator.set_prims(prims)
-    duplicator.set_orbs(orbs, pos)
-    duplicator.set_hops(hops)
-
-    # join unit cell [0,0] with [1,0]
-    join = [1,0]
-
-    # New primitive vectors
-    A1 = [2,-1]
-    A2 = [0, 1]
-
-    duplicator.set_duplication_rules(join, A1, A2)
-    duplicator.duplicate_orbs()
-    duplicator.duplicate_hops()
-
-    new_A1 = A1[0]*a1 + A1[1]*a2
-    new_A2 = A2[0]*a1 + A2[1]*a2
-    new_prims = [new_A1, new_A2]
-
-    ham_struct = [duplicator.new_orbs_dic, duplicator.new_pos, new_prims, duplicator.new_hops]
-    
-    
-
-    self.set_system(ham_struct, width, length, twist, k)
-
-    C = self.C
-    S = self.S
-
-    # if Anderson disorder was not defined
-    if type(Anderson) == int:
-        Anderson = np.zeros([C,S])
-    
-    self.Anderson = Anderson
-    self.build_spin2() # basis ordering is not the usual. Pauli matrices is also different
-    self.build_vels_hsample()
-
-
-# In[ ]:
-
-
-def set_jaroslav(
-    self, width, length, twist, k,t, Δ, λIA, λIB, λR, φ, Anderson=-1):
-
-    #  _ 
-    # / \   Graphene unit cell orientation
-    # \_/
-
-    # primitive vectors
-    a1 = np.sqrt(3)*np.array([np.sqrt(3)/2, 0.5])
-    a2 = np.sqrt(3)*np.array([0,1])
-    prims = [a1,  a2]
-
-    orbs = [           "Au",            "Ad",            "Bu",            "Bd"]
-    pos  = [np.array([0,0]), np.array([0,0]), np.array([1,0]), np.array([1,0])]
-    No = len(orbs)
-
-    # Build the hoppings from the tight-binding functionality
-    hops = bs.Jaroslav(t,Δ,λIA,λIB,λR,φ)    
-    
-    duplicator = hop_utils()
-
-    duplicator.set_prims(prims)
-    duplicator.set_orbs(orbs, pos)
-    duplicator.set_hops(hops)
-
-    # join unit cell [0,0] with [1,0]
-    join = [1,0]
-
-    # New primitive vectors
-    A1 = [2,-1]
-    A2 = [0, 1]
-
-    duplicator.set_duplication_rules(join, A1, A2)
-    duplicator.duplicate_orbs()
-    duplicator.duplicate_hops()
-
-    new_A1 = A1[0]*a1 + A1[1]*a2
-    new_A2 = A2[0]*a1 + A2[1]*a2
-    new_prims = [new_A1, new_A2]
-
-    ham_struct = [duplicator.new_orbs_dic, duplicator.new_pos, new_prims, duplicator.new_hops]
-    
-    
-
-    self.set_system(ham_struct, width, length, twist, k)
-
-    C = self.C
-    S = self.S
-
-    # if Anderson disorder was not defined
-    if type(Anderson) == int:
-        Anderson = np.zeros([C,S])
-    
-    self.Anderson = Anderson
-    self.build_spin2() # basis ordering is not the usual. Pauli matrices is also different
-    self.build_vels_hsample()
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-def set_branislav(
-    self, width, length, twist, k,t, λR, λex, Anderson=-1):
-
-    #  _ 
-    # / \   Graphene unit cell orientation
-    # \_/
-
-    # primitive vectors
-    a1 = np.sqrt(3)*np.array([np.sqrt(3)/2, 0.5])
-    a2 = np.sqrt(3)*np.array([0,1])
-    prims = [a1,  a2]
-
-    orbs = [           "Au",            "Ad",            "Bu",            "Bd"]
-    pos  = [np.array([0,0]), np.array([0,0]), np.array([1,0]), np.array([1,0])]
-    No = len(orbs)
-
-    # Build the hoppings from the tight-binding functionality
-    
-    φ = 0
-    hops = []
-    hops += bs.graphene(t)
-    hops += bs.rashba_phase(λR, φ)
-    hops += bs.magnetization(λex)
-    
-    duplicator = hop_utils()
-
-    duplicator.set_prims(prims)
-    duplicator.set_orbs(orbs, pos)
-    duplicator.set_hops(hops)
-
-    # join unit cell [0,0] with [1,0]
-    join = [1,0]
-
-    # New primitive vectors
-    A1 = [2,-1]
-    A2 = [0, 1]
-
-    duplicator.set_duplication_rules(join, A1, A2)
-    duplicator.duplicate_orbs()
-    duplicator.duplicate_hops()
-
-    new_A1 = A1[0]*a1 + A1[1]*a2
-    new_A2 = A2[0]*a1 + A2[1]*a2
-    new_prims = [new_A1, new_A2]
-
-    ham_struct = [duplicator.new_orbs_dic, duplicator.new_pos, new_prims, duplicator.new_hops]
-    
-    
-
-    self.set_system(ham_struct, width, length, twist, k)
-
-    C = self.C
-    S = self.S
-
-    # if Anderson disorder was not defined
-    if type(Anderson) == int:
-        Anderson = np.zeros([C,S])
-    
-    self.Anderson = Anderson
-    self.build_spin2() # basis ordering is not the usual. Pauli matrices is also different
-    self.build_vels_hsample()
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# ## Graphene nanoribbon with twisted Rashba and exchange (Jaroslav)
-
-# In[ ]:
-
-
-def ham_gramag_rot(W, hops, twist=False, k=0):
-    No = 8
-    t,m,R,φ,λ = hops
-    C = No*W
-    
-    sq = np.sqrt(3.0)/2.0
-    
-    # Rashba hoppings: R = lR*2.0j/3.0
-    hop1 =      + 1j    # Au -> Bd same cell
-    hop2 =      - 1j    # Ad -> Bu same cell
-    hop3 =  0.5 + 1j*sq # Au -> Bd going to up left
-    hop4 =  0.5 - 1j*sq # Ad -> Bu going to up left
-    hop5 = -0.5 + 1j*sq # Au -> Bd going to down left
-    hop6 = -0.5 - 1j*sq # Ad -> Bu going to down left
-
-    hop1 *= R; hop2 *= R; hop3 *= R
-    hop4 *= R; hop5 *= R; hop6 *= R
-    
-    # rotate Rashba
-    hop1 *= np.exp( 1j*φ)
-    hop2 *= np.exp(-1j*φ)
-    hop3 *= np.exp( 1j*φ)
-    hop4 *= np.exp(-1j*φ)
-    hop5 *= np.exp( 1j*φ)
-    hop6 *= np.exp(-1j*φ)
-    
-    hop7 = λ*1j
-    
-    h  = np.zeros([C,C], dtype=complex)
-    
-    for j in range(W):
-        
-        # Decide how to connect to cell above:
-        # if the cell above is a normal cell, then there is no modification
-        ph  = 1
-        phc = 1
-        
-        # if the cell above does not exist, connect to cell in the bottom but with zero hopping        
-        # (efectively the same thing as not connecting)
-        if j == W-1 and not twist:
-            ph  = 0
-            phc = 0
-    
-        # if the system has periodic boundary conditions or twisted boundary conditions, then 
-        # connect to the cell in the bottom, with the proper modification to the phase
-        elif j == W-1 and twist:
-            ph  = np.exp(-1j*k)
-            phc = np.exp(1j*k)
-            
-        
-        # up spin
-        nAu = 0 + j*No
-        nBu = 1 + j*No
-        nCu = 2 + j*No
-        nDu = 3 + j*No
-        
-        # down spin
-        nAd = 4 + j*No
-        nBd = 5 + j*No
-        nCd = 6 + j*No
-        nDd = 7 + j*No
-        
-
-        # print(nAu, nBu, nCu, nDu, nAd, nBd, nCd, nDd)
-        # print(No)
-        
-        # magnetization
-        h[nAu, nAu] = m
-        h[nBu, nBu] = m
-        h[nCu, nCu] = m
-        h[nDu, nDu] = m
-        
-        h[nAd, nAd] = -m
-        h[nBd, nBd] = -m
-        h[nCd, nCd] = -m
-        h[nDd, nDd] = -m
-        
-        
-        # Graphene Hamiltonian: Within same unit cell, spin up
-        h[nAu, nBu] = t
-        h[nBu, nAu] = t
-
-        h[nCu, nBu] = t
-        h[nBu, nCu] = t
-
-        h[nCu, nDu] = t
-        h[nDu, nCu] = t
-        
-        # Graphene Hamiltonian: Within same unit cell, spin down
-        h[nAd, nBd] = t
-        h[nBd, nAd] = t
-
-        h[nCd, nBd] = t
-        h[nBd, nCd] = t
-
-        h[nCd, nDd] = t
-        h[nDd, nCd] = t
-        
-        # Intrinsic SOC second-nearest neighbours: Within same unit cell, spin up
-        h[nAu, nCu] = -hop7
-        h[nCu, nAu] = -hop7.conjugate()
-        h[nBu, nDu] =  hop7
-        h[nDu, nBu] =  hop7.conjugate()
-        
-        # Intrinsic SOC second-nearest neighbours: Within same unit cell, spin down
-        h[nAd, nCd] = -hop7
-        h[nCd, nAd] = -hop7.conjugate()
-        h[nBd, nDd] =  hop7
-        h[nDd, nBd] =  hop7.conjugate()
-                
-        
-        
-        # Rashba SoC, horizontal, same UC, Au -> Bd and conjugate
-        h[nBd, nAu] = hop1
-        h[nAu, nBd] = hop1.conjugate()
-        h[nDd, nCu] = hop1
-        h[nCu, nDd] = hop1.conjugate()
-        
-        # Rashba SoC, horizontal, same UC, Ad -> Bu and conjugate
-        h[nBu, nAd] = hop2
-        h[nAd, nBu] = hop2.conjugate()
-        h[nDu, nCd] = hop2
-        h[nCd, nDu] = hop2.conjugate()
-        
-        # Rashba SoC, diagonal, same UC, Au -> Bd
-        h[nBd, nCu] = hop5
-        h[nCu, nBd] = hop5.conjugate()
-        h[nBu, nCd] = hop6
-        h[nCd, nBu] = hop6.conjugate()
-                
-        
-        
-
-            
-        # spin up
-        h[(nBu+No)%C, nCu] = t*ph
-        h[nCu, (nBu+No)%C] = t*phc
-
-        # spin down
-        h[(nBd+No)%C, nCd] = t*ph
-        h[nCd, (nBd+No)%C] = t*phc
-
-        # Rashba - different UC, Au -> Bd
-        h[(nBd+No)%C, nCu] = hop3*ph
-        h[nCu, (nBd+No)%C] = hop3.conjugate()*phc
-
-        # Rashba - different UC, Ad -> Bu
-        h[(nBu+No)%C, nCd] = hop4*ph
-        h[nCd, (nBu+No)%C] = hop4.conjugate()*phc
-            
-        
-        # Intrinsic SOC second-nearest neighbours: Connection to unit cell above, spin up
-        h[nCu, (nAu+No)%C] = -hop7*phc
-        h[(nAu+No)%C, nCu] = -hop7.conjugate()*ph
-        h[nDu, (nBu+No)%C] =  hop7*phc
-        h[(nBu+No)%C, nDu] =  hop7.conjugate()*ph
-        
-        # Intrinsic SOC second-nearest neighbours: Connection to unit cell above, spin down
-        h[nCd, (nAd+No)%C] = -hop7*phc
-        h[(nAd+No)%C, nCd] = -hop7.conjugate()*ph
-        h[nDd, (nBd+No)%C] =  hop7*phc
-        h[(nBd+No)%C, nDd] =  hop7.conjugate()*ph
-        
-        # Intrinsic SOC second-nearest neighbours: Connection to unit cell above (same orbital), spin up
-        h[nAu, (nAu+No)%C] =  hop7*phc
-        h[(nAu+No)%C, nAu] =  hop7.conjugate()*ph
-        
-        h[nBu, (nBu+No)%C] = -hop7*phc
-        h[(nBu+No)%C, nBu] = -hop7.conjugate()*ph
-        
-        h[nCu, (nCu+No)%C] =  hop7*phc
-        h[(nCu+No)%C, nCu] =  hop7.conjugate()*ph
-        
-        h[nDu, (nDu+No)%C] = -hop7*phc
-        h[(nDu+No)%C, nDu] = -hop7.conjugate()*ph
-        
-        # Intrinsic SOC second-nearest neighbours: Connection to unit cell above (same orbital), spin down
-        h[nAd, (nAd+No)%C] =  hop7*phc
-        h[(nAd+No)%C, nAd] =  hop7.conjugate()*ph
-        
-        h[nBd, (nBd+No)%C] = -hop7*phc
-        h[(nBd+No)%C, nBd] = -hop7.conjugate()*ph
-        
-        h[nCd, (nCd+No)%C] =  hop7*phc
-        h[(nCd+No)%C, nCd] =  hop7.conjugate()*ph
-        
-        h[nDd, (nDd+No)%C] = -hop7*phc
-        h[(nDd+No)%C, nDd] = -hop7.conjugate()*ph
-        
-        
-
-            
-               
-    return h
-
-def hop_gramag_rot(W, hops, twist=False, k=0):
-    No = 8
-    t,m,R,φ,λ = hops
-    C = No*W
-    sq = np.sqrt(3.0)/2.0
-    
-    # Rashba hoppings: R = lR*2.0j/3.0
-    hop1 =      + 1j    # Au -> Bd same cell
-    hop2 =      - 1j    # Ad -> Bu same cell
-    hop3 =  0.5 + 1j*sq # Au -> Bd going to up left
-    hop4 =  0.5 - 1j*sq # Ad -> Bu going to up left
-    hop5 = -0.5 + 1j*sq # Au -> Bd going to down left
-    hop6 = -0.5 - 1j*sq # Ad -> Bu going to down left
-
-    hop1 *= R; hop2 *= R; hop3 *= R
-    hop4 *= R; hop5 *= R; hop6 *= R
-    
-    # rotate Rashba
-    hop1 *= np.exp( 1j*φ)
-    hop2 *= np.exp(-1j*φ)
-    hop3 *= np.exp( 1j*φ)
-    hop4 *= np.exp(-1j*φ)
-    hop5 *= np.exp( 1j*φ)
-    hop6 *= np.exp(-1j*φ)
-    
-    u = np.zeros([C,C], dtype=complex)
-    for j in range(W):
-        
-        # Decide how to connect to cell above:
-        # if the cell above is a normal cell, then there is no modification
-        ph  = 1
-        phc = 1
-        
-        # if the cell above does not exist, connect to cell in the bottom but with zero hopping        
-        # (efectively the same thing as not connecting)
-        if j == W-1 and not twist:
-            ph  = 0
-            phc = 0
-    
-        # if the system has periodic boundary conditions or twisted boundary conditions, then 
-        # connect to the cell in the bottom, with the proper modification to the phase
-        elif j == W-1 and twist:
-            ph  = np.exp(-1j*k)
-            phc = np.exp(1j*k)
-            
-        
-        # up spin
-        nAu = 0 + j*No
-        nBu = 1 + j*No
-        nCu = 2 + j*No
-        nDu = 3 + j*No
-        
-        # down spin
-        nAd = 4 + j*No
-        nBd = 5 + j*No
-        nCd = 6 + j*No
-        nDd = 7 + j*No
-        
-        # graphene hoppings, same j
-        u[nAu,nDu] = t
-        u[nAd,nDd] = t
-        
-        # Rashba SoC, same j
-        u[nAd, nDu] = hop3.conjugate()
-        u[nAu, nDd] = hop4.conjugate()
-        
-        # graphene hoppings, cell above to right
-        u[(nAu+No)%C,nDu] = t*ph
-        u[(nAd+No)%C,nDd] = t*ph
-
-        # Rashba, cell above to right
-        u[(nAd+No)%C,nDu] = hop5.conjugate()*ph
-        u[(nAu+No)%C,nDd] = hop6.conjugate()*ph
-        
-        
-        # Intrinsic SOC, same j, spin up
-        u[nAu, nCu] =  hop7
-        u[nCu, nAu] =  hop7.conjugate()
-        u[nBu, nDu] = -hop7
-        u[nDu, nBu] = -hop7.conjugate()
-        
-        # Intrinsic SOC, same j, spin down
-        u[nAu, nCu] =  hop7
-        u[nCu, nAu] =  hop7.conjugate()
-        u[nBu, nDu] = -hop7
-        u[nDu, nBu] = -hop7.conjugate()
-        
-        # Intrinsic SOC, different j, spin up
-        # u[
-
-    return u.transpose().conjugate()
-
-
-# ## Graphene nanoribbon with Rashba and exchange
-# In armchair configuration (armchair along x)
-
-# In[ ]:
-
-
-
-
-
-# In[13]:
-
-
-def ham_gramag(W, hops, twist=False, k=0):
-    No = 8
-    t,m,R = hops
-    C = No*W
-    
-    sq = np.sqrt(3.0)/2.0
-    
-    # Rashba hoppings: R = lR*2.0j/3.0
-    hop1 =      + 1j    # Au -> Bd same cell
-    hop2 =      - 1j    # Ad -> Bu same cell
-    hop3 =  0.5 + 1j*sq # Au -> Bd going to up left
-    hop4 =  0.5 - 1j*sq # Ad -> Bu going to up left
-    hop5 = -0.5 + 1j*sq # Au -> Bd going to down left
-    hop6 = -0.5 - 1j*sq # Ad -> Bu going to down left
-
-    # hop1 = hop2 = hop3 = hop4 = hop5 = hop6 = 0
-    hop1 *= R; hop2 *= R; hop3 *= R
-    hop4 *= R; hop5 *= R; hop6 *= R
-    
-    h  = np.zeros([C,C], dtype=complex)
-    # print(h)
-    for j in range(W):
-        
-        # up spin
-        nAu = 0 + j*No
-        nBu = 1 + j*No
-        nCu = 2 + j*No
-        nDu = 3 + j*No
-        
-        # down spin
-        nAd = 4 + j*No
-        nBd = 5 + j*No
-        nCd = 6 + j*No
-        nDd = 7 + j*No
-        
-
-        # print(nAu, nBu, nCu, nDu, nAd, nBd, nCd, nDd)
-        # print(No)
-        
-        # magnetization
-        h[nAu, nAu] = m
-        h[nBu, nBu] = m
-        h[nCu, nCu] = m
-        h[nDu, nDu] = m
-        
-        h[nAd, nAd] = -m
-        h[nBd, nBd] = -m
-        h[nCd, nCd] = -m
-        h[nDd, nDd] = -m
-        
-        
-        # Within same unit cell, spin up
-        h[nAu, nBu] = t
-        h[nBu, nAu] = t
-
-        h[nCu, nBu] = t
-        h[nBu, nCu] = t
-
-        h[nCu, nDu] = t
-        h[nDu, nCu] = t
-        
-        # Within same unit cell, spin down
-        h[nAd, nBd] = t
-        h[nBd, nAd] = t
-
-        h[nCd, nBd] = t
-        h[nBd, nCd] = t
-
-        h[nCd, nDd] = t
-        h[nDd, nCd] = t
-        
-        
-        
-        
-        # Rashba SoC, horizontal, same UC, Au -> Bd and conjugate
-        h[nBd, nAu] = hop1
-        h[nAu, nBd] = hop1.conjugate()
-        h[nDd, nCu] = hop1
-        h[nCu, nDd] = hop1.conjugate()
-        
-        # Rashba SoC, horizontal, same UC, Ad -> Bu and conjugate
-        h[nBu, nAd] = hop2
-        h[nAd, nBu] = hop2.conjugate()
-        h[nDu, nCd] = hop2
-        h[nCd, nDu] = hop2.conjugate()
-        
-        # Rashba SoC, diagonal, same UC, Au -> Bd
-        h[nBd, nCu] = hop5
-        h[nCu, nBd] = hop5.conjugate()
-        h[nBu, nCd] = hop6
-        h[nCd, nBu] = hop6.conjugate()
-                
-        
-        # Connect to upper boundary
-        if j<W-1:
-            # spin up
-            h[nBu+No, nCu] = t
-            h[nCu, nBu+No] = t
-                        
-            # spin down
-            h[nBd+No, nCd] = t
-            h[nCd, nBd+No] = t
-                        
-            # Rashba - different UC, Au -> Bd
-            h[nBd+No, nCu] = hop3
-            h[nCu, nBd+No] = hop3.conjugate()
-            
-            # Rashba - different UC, Ad -> Bu
-            h[nBu+No, nCd] = hop4
-            h[nCd, nBu+No] = hop4.conjugate()
-            
-        
-        
-        # Imposing k-point sampling
-        if twist and j == W-1:
-            ph  = np.exp(-1j*k)
-            phc = np.exp(1j*k)
-            
-            # spin up
-            h[1, nCu] = t*ph
-            h[nCu, 1] = t*phc          
-            
-            # spin down
-            h[5, nCd] = t*ph
-            h[nCd, 5] = t*phc
-            
-            # Rashba - different UC, Au -> Bd : 1= nBu+No, 5=nBd+No     
-            h[5, nCu] = hop3*ph
-            h[nCu, 5] = hop3.conjugate()*phc
-            
-            # Rashba - different UC, Ad -> Bu
-            h[1, nCd] = hop4*ph
-            h[nCd, 1] = hop4.conjugate()*phc
-
-            
-               
-    return h
-
-def hop_gramag(W, hops, twist=False, k=0):
-    # Calculate the Hamiltonian section 'ut' which connects
-    # slice n to slice n+1:   ut[n+1,n]
-    
-    No = 8
-    t,m,R = hops
-    C = No*W
-    sq = np.sqrt(3.0)/2.0
-    
-    # Rashba hoppings: R = lR*2.0j/3.0
-    hop1 =      + 1j    # Au -> Bd same cell
-    hop2 =      - 1j    # Ad -> Bu same cell
-    hop3 =  0.5 + 1j*sq # Au -> Bd going to up left
-    hop4 =  0.5 - 1j*sq # Ad -> Bu going to up left
-    hop5 = -0.5 + 1j*sq # Au -> Bd going to down left
-    hop6 = -0.5 - 1j*sq # Ad -> Bu going to down left
-
-    # hop1 = hop2 = hop3 = hop4 = hop5 = hop6 = 0
-    hop1 *= R; hop2 *= R; hop3 *= R
-    hop4 *= R; hop5 *= R; hop6 *= R
-    
-    ut = np.zeros([C,C], dtype=complex)
-    for j in range(W):
-        # up spin
-        nAu = 0 + j*No
-        nBu = 1 + j*No
-        nCu = 2 + j*No
-        nDu = 3 + j*No
-        
-        # down spin
-        nAd = 4 + j*No
-        nBd = 5 + j*No
-        nCd = 6 + j*No
-        nDd = 7 + j*No
-        
-        # normal hoppings
-        ut[nAu,nDu] = t
-        ut[nAd,nDd] = t
-        
-        # Rashba SoC
-        ut[nAd, nDu] = hop4.conjugate()
-        ut[nAu, nDd] = hop3.conjugate()
-        
-        # Connect to upper boundary
-        if j<W-1:
-            # normal hoppings
-            ut[nAu+No,nDu] = t
-            ut[nAd+No,nDd] = t
-            
-            # Rashba
-            ut[nAd+No, nDu] = hop6.conjugate()
-            ut[nAu+No, nDd] = hop5.conjugate()
-
-        # Impose k-point sampling
-        if twist and j == W-1:
-            ph  = np.exp(-1j*k)
-            
-            ut[0,nDu] = t*ph
-            ut[4,nDd] = t*ph
-            
-            # Rashba
-            ut[4,nDu] = hop6.conjugate()*ph
-            ut[0,nDd] = hop5.conjugate()*ph
-            
-    # Convert 'ut' to 'u'
-    return ut.transpose().conjugate()
-
-
-# ## Old Rashba configuration (delete)
-
-# In[ ]:
-
-
-def ham_gramag_old(W, hops, twist=False, k=0):
-    No = 8
-    t,m,R = hops
-    C = No*W
-    
-    sq = np.sqrt(3.0)/2.0
-    
-    h  = np.zeros([C,C], dtype=complex)
-    # print(h)
-    for j in range(W):
-        
-        # up spin
-        nAu = 0 + j*No
-        nBu = 1 + j*No
-        nCu = 2 + j*No
-        nDu = 3 + j*No
-        
-        # down spin
-        nAd = 4 + j*No
-        nBd = 5 + j*No
-        nCd = 6 + j*No
-        nDd = 7 + j*No
-        
-
-        # print(nAu, nBu, nCu, nDu, nAd, nBd, nCd, nDd)
-        # print(No)
-        
-        # magnetization
-        h[nAu, nAu] = m
-        h[nBu, nBu] = m
-        h[nCu, nCu] = m
-        h[nDu, nDu] = m
-        
-        h[nAd, nAd] = -m
-        h[nBd, nBd] = -m
-        h[nCd, nCd] = -m
-        h[nDd, nDd] = -m
-        
-        
-        # Within same unit cell, spin up
-        h[nAu, nBu] = t
-        h[nBu, nAu] = t
-
-        h[nCu, nBu] = t
-        h[nBu, nCu] = t
-
-        h[nCu, nDu] = t
-        h[nDu, nCu] = t
-        
-        # Within same unit cell, spin down
-        h[nAd, nBd] = t
-        h[nBd, nAd] = t
-
-        h[nCd, nBd] = t
-        h[nBd, nCd] = t
-
-        h[nCd, nDd] = t
-        h[nDd, nCd] = t
-        
-        
-        
-        
-        
-        # Rashba SoC, horizontal, same UC
-        h[nBu, nAd] = -R
-        h[nAd, nBu] = h[nBu, nAd].conjugate()
-        h[nDu, nCd] = -R
-        h[nCd, nDu] = h[nDu, nCd].conjugate()
-        
-        h[nBd, nAu] = -R
-        h[nAu, nBd] = h[nBd, nAu].conjugate()
-        h[nDd, nCu] = -R
-        h[nCu, nDd] = h[nDd, nCu].conjugate()
-        
-        # Rashba SoC, diagonal, same UC
-        h[nBu, nCd] =  -R*(-0.5 + sq*1j)
-        h[nCd, nBu] = h[nBu, nCd].conjugate()
-        h[nBd, nCu] =  -R*(-0.5 - sq*1j)
-        h[nCu, nBd] = h[nBd, nCu].conjugate()
-        
-        
-        
-        
-        
-        
-        
-        # Connect to upper boundary
-        if j<W-1:
-            # spin up
-            h[nCu, nBu+No] = t
-            h[nBu+No, nCu] = t
-            
-            # spin down
-            h[nCd, nBd+No] = t
-            h[nBd+No, nCd] = t
-            
-            # Rashba - different UC
-            h[nBu+No, nCd] = -R*(-0.5 - sq*1j)
-            h[nCd, nBu+No] = h[nBu+No, nCd].conjugate()
-
-            h[nBd+No, nCu] = -R*(-0.5 + sq*1j)
-            h[nCu, nBd+No] = h[nBd+No, nCu].conjugate()
-        
-        
-        
-        # Imposing k-point sampling
-        if twist and j == W-1:
-            # spin up
-            h[nCu, 1] = t*np.exp(1j*k)
-            h[1, nCu] = t*np.exp(-1j*k)
-            
-            # spin down
-            h[nCd, 5] = t*np.exp(1j*k)
-            h[5, nCd] = t*np.exp(-1j*k)
-            
-            # Rashba - different UC : 1= nBu+No, 5=nBd+No     
-            h[1, nCd] = -R*(-0.5 - sq*1j)*np.exp(-1j*k)
-            h[nCd, 1] = h[1, nCd].conjugate()
-
-            h[5, nCu] = -R*(-0.5 + sq*1j)*np.exp(-1j*k)
-            h[nCu, 5] = h[5, nCu].conjugate()
-            
-               
-    return h
-
-def hop_gramag_old(W, hops, twist=False, k=0):
-    No = 8
-    t,m,R = hops
-    C = No*W
-    sq = np.sqrt(3.0)/2.0
-    
-    u = np.zeros([C,C], dtype=complex)
-    for j in range(W):
-        # up spin
-        nAu = 0 + j*No
-        nBu = 1 + j*No
-        nCu = 2 + j*No
-        nDu = 3 + j*No
-        
-        # down spin
-        nAd = 4 + j*No
-        nBd = 5 + j*No
-        nCd = 6 + j*No
-        nDd = 7 + j*No
-        
-        u[nDu,nAu] = t
-        u[nDd,nAd] = t
-        
-        # Rashba SoC
-        u[nDu, nAd] = -R*(-0.5 - sq*1j)
-        u[nDd, nAu] = -R*(-0.5 + sq*1j)
-
-        
-        # Connect to upper boundary
-        if j<W-1:
-            u[nDu,nAu+No] = t
-            u[nDd,nAd+No] = t
-            
-            # Rashba
-            u[nDu, nAd+No] = -R*(-0.5 + sq*1j)
-            u[nDd, nAu+No] = -R*(-0.5 - sq*1j)
-
-        # Impose k-point sampling
-        if twist and j == W-1:
-            u[nDu,0] = t*np.exp(1j*k)
-            u[nDd,4] = t*np.exp(1j*k)
-            
-            # Rashba
-            u[nDu, 4] = -R*(-0.5 + sq*1j)*np.exp(1j*k)
-            u[nDd, 0] = -R*(-0.5 - sq*1j)*np.exp(1j*k)
-            
-    return u
-
-
-# ## Set rest of the Hamiltonian
-
-# In[4]:
-
-
-def set_graphene_nanoribbon_rashba(self, width, length, 
-                                   twist, k, ander=0.0, m=0.4, lR=0.3):
-    # primitive vectors
-    a_cc = 1.0
-    a1 = np.array([3.0,       0.0])*a_cc
-    a2 = np.array([0.0,np.sqrt(3)])*a_cc
-    prim = [a1, a2]
-
-    # orbital positions
-    A = np.array([0.0, 0.0])
-    B = np.array([1.0, 0.0])*a_cc
-    
-    C = B + np.array([1.0, np.sqrt(3)])*a_cc/2
-    D = C + np.array([1.0,        0.0])*a_cc
-    
-    # Position of each orbital within the unit cell
-    pos = [A*1.0,B*1.0,C*1.0,D*1.0,A*1.0,B*1.0,C*1.0,D*1.0]
-
-    # Geometry parameters
-    W = width
-    S = length
-    No = 8
-    C = No*W
-    
-    self.drop_length = 3.0*length - 0.5 
-
-    self.W = W
-    self.S = S
-    self.No = No
-    self.C = C
-    self.pos = pos
-    self.prim = prim
-    
-    # Hopping parameters
-    t = -1
-    R = lR*2.0j/3.0
-    hops = [t,m,R]
-
-    # Setting the Hamiltonian
-    h = ham_gramag(W, hops, twist, k)
-    u = hop_gramag(W, hops, twist, k)
-    ut = u.transpose().conjugate()
-    Anderson = np.random.random([C,S])*ander
-
-
-    # set the relevant quantities
-    self.set_h(h,u)
-    self.Anderson = Anderson
-
-    
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# ## 1D TB
+# ## Velocity and spin operators
+# 
+# Define the velocity and spin operators inside the whole sample. This assumes infinite leads because it uses the $u$ and $h$ operators
+# 
+# 1. Build the velocity operators in the $x$ and $y$ directions
+# 2. Build the spin operators $s_x$, $s_y$, $s_z$ with two different basis orderings. The first ordering indexes the basis atoms first, then the spin. The second ordering is the other way around
+# 
 
 # In[5]:
 
 
-# just use 2D TB with width=1
-
-
-# ## 2D TB nanoribbon
-
-# In[6]:
-
-
-def ham_2dtb(W, hops, twist=False, k=0):
-    No = 1
-    t = hops[0]
-    C = No*W
-    
-    
-    h  = np.zeros([C,C], dtype=complex)
-    for j in range(W):
-        
-        
-        # Connect to upper boundary
-        if j<W-1:
-            # spin up
-            h[j, j+No] = t
-            h[j+No, j] = t
-            
-        
-        
-        # Imposing k-point sampling
-        if twist and j == W-1:
-            # spin up
-            h[j, 0] = t*np.exp( 1j*k)
-            h[0, j] = t*np.exp(-1j*k)
-            
-               
-    return h
-
-def hop_2dtb(W, hops, twist=False, k=0):
-    No = 1
-    t = hops[0]
-    C = No*W
-    
-    u = np.zeros([C,C], dtype=complex)
-    
-    for j in range(W):        
-        u[j,j] = t
-        
-    return u
-
-
-# In[7]:
-
-
-def set_2dtb_nanoribbon(self, width, length, twist, k, ander=0.0):
-    # primitive vectors
-    a_cc = 1.0
-    a1 = np.array([1.0, 0.0])*a_cc
-    a2 = np.array([0.0, 1.0])*a_cc
-    prim = [a1, a2]
-
-    # orbital positions
-    A = np.array([0.0, 0.0])
-    
-    pos = [A*1.0]
-
-#     for i in pos:
-#         print(i)
-#         plt.scatter(i[0], i[1])
-#     plt.show()
-        
-    # Twist parameters
-    # twist = True
-    # k = 0
-
-    # Geometry parameters
-    W = width
-    S = length
-    No = 1
-    C = No*W
-
-    self.W = W
-    self.S = S
-    self.No = No
-    self.C = C
-    self.pos = pos
-    self.prim = prim
-    
-    # Hopping parameters
-    t = -1
-    hops = [t]
-    
-
-    
-
-    # Setting the Hamiltonian
-    h = ham_2dtb(W, hops, twist, k)
-    u = hop_2dtb(W, hops, twist, k)
-    ut = u.transpose().conjugate()
-    Anderson = np.random.random([C,S])*ander
-
-
-    # set the relevant quantities
-    self.set_h(h,u)
-    self.Anderson = Anderson
-
-
-# ## TB2D larger UC
-
-# In[8]:
-
-
-def ham_2dtb_large(W, hops, twist=False, k=0):
-    No = 2
-    t = hops[0]
-    C = No*W
-    
-    
-    h  = np.zeros([C,C], dtype=complex)
-    for j in range(W):
-        
-        A = j*No
-        B = A+1
-        
-        h[A, B] = t
-        h[B, A] = t
-        
-        # Connect to upper boundary
-        if j<W-1:
-            h[A, A+No] = t
-            h[A+No, A] = t
-            
-            h[B, B+No] = t
-            h[B+No, B] = t
-            
-        
-        
-        # Imposing k-point sampling
-        if twist and j == W-1:
-            h[A, 0] = t*np.exp( 1j*k)
-            h[0, A] = t*np.exp(-1j*k)
-            
-            h[B, 1] = t*np.exp( 1j*k)
-            h[1, B] = t*np.exp(-1j*k)
-            
-               
-    return h
-
-def hop_2dtb_large(W, hops, twist=False, k=0):
-    No = 2
-    t = hops[0]
-    C = No*W
-    
-    u = np.zeros([C,C], dtype=complex)
-    
-    for j in range(W):  
-        A = j*No
-        B = A+1
-        u[B,A] = t
-        
-        
-    return u
-
-
-# In[9]:
-
-
-def set_2dtb_nanoribbon_large(self, width, length, twist, k, ander=0.0):
-    # primitive vectors
-    a_cc = 1.0
-    a1 = np.array([2.0, 0.0])*a_cc
-    a2 = np.array([0.0, 1.0])*a_cc
-    prim = [a1, a2]
-
-    # orbital positions
-    A = np.array([0.0, 0.0])
-    B = np.array([1.0, 0.0])
-    
-    pos = [A*1.0, B*1.0]
-
-#     for i in pos:
-#         print(i)
-#         plt.scatter(i[0], i[1])
-#     plt.show()
-        
-    # Twist parameters
-    # twist = True
-    # k = 0
-
-    # Geometry parameters
-    W = width
-    S = length
-    No = 2
-    C = No*W
-
-    self.W = W
-    self.S = S
-    self.No = No
-    self.C = C
-    self.pos = pos
-    self.prim = prim
-    
-    # Hopping parameters
-    t = -1
-    hops = [t]
-    
-
-    
-
-    # Setting the Hamiltonian
-    h = ham_2dtb_large(W, hops, twist, k)
-    u = hop_2dtb_large(W, hops, twist, k)
-    ut = u.transpose().conjugate()
-    Anderson = np.random.random([C,S])*ander
-
-
-    # set the relevant quantities
-    self.set_h(h,u)
-    self.Anderson = Anderson
-
-
-# ## Ham utils
-
-# In[10]:
-
-
 def build_spin(self):
     # Assumes spin
-    C = self.C
-    S = self.S
-    W = self.W
+    C  = self.C
+    S  = self.S
+    W  = self.W
     No = self.No
     Nsites_UC = No//2
     
@@ -1323,7 +134,7 @@ def build_spin(self):
         for j in range(W):
             for oo in range(Nsites_UC):
                 n = i*C + j*No + oo # spin up
-                m = n + Nsites_UC # spin down
+                m = n + Nsites_UC   # spin down
 
                 # sy
                 self.spiny[n,m] = 1j
@@ -1340,9 +151,9 @@ def build_spin(self):
     
 def build_spin2(self):
     # Assumes spin, but with a different basis ordering
-    C = self.C
-    S = self.S
-    W = self.W
+    C  = self.C
+    S  = self.S
+    W  = self.W
     No = self.No
     Nsites_UC = No//2
     
@@ -1367,7 +178,12 @@ def build_spin2(self):
                 self.spinz[n,n] =  1
                 self.spinz[m,m] = -1
                 
-                
+      
+
+
+# In[6]:
+
+
 def build_vels_hsample(self):
     C = self.C
     S = self.S
@@ -1434,11 +250,18 @@ def build_vels_hsample(self):
 
 
 
-# In[11]:
+# ## Finite leads
+# 
+# Additional functionality to include leads explicitly inside the full Hamiltonian. This is mostly for testing purposes.
+# 1. Generate the Hamiltonian without the drop in potential
+# 2. Add the potential drop to the Hamiltonian
+# 3. Get the eigenvalues and eigenvectors of this full Hamiltonian
+
+# In[7]:
 
 
 def generate_hamiltonian(self, L,R):
-    # Generates the full Hamiltonian, including leads, without drop
+    # Generates the full Hamiltonian H0, including leads, without drop
     # This is mainly for testing purposes
     # Requires the lead sizes L and R
 
@@ -1477,7 +300,7 @@ def generate_hamiltonian(self, L,R):
     self.H0_finite_defined = True
 
 
-# In[12]:
+# In[8]:
 
 
 def hamiltonian_add_drop(self, dV):
@@ -1485,11 +308,11 @@ def hamiltonian_add_drop(self, dV):
     assert(self.H0_finite_defined) # make sure it's defined first
 
     NL = self.NL
-    W = self.W
-    C = self.C
-    L = self.L
-    R = self.R
-    S = self.S
+    W  = self.W
+    C  = self.C
+    L  = self.L
+    R  = self.R
+    S  = self.S
     No = self.No
     self.dV = dV
     N = NL*C # total Hilbert space
@@ -1522,7 +345,7 @@ def hamiltonian_add_drop(self, dV):
     self.H_finite_defined = True
 
 
-# In[13]:
+# In[9]:
 
 
 def get_eigs(self):
@@ -1537,11 +360,416 @@ def get_eigs(self):
     self.Pt0 = self.P0.conjugate().transpose()
 
 
+# # Premade models 
+# These functions are an interface to the bandstructure code
+# 1. Graphene nanoribbon with Rashba (predefined hops, no Anderson)
+# 2. Twisted TMD/Graphene (Rashba angle), for the project with Klaus and Jaroslav
+# 3. Graphene nanoribbon with Rashba and exchange coupling (with Anderson, can choose all couplings)
+
+# In[10]:
+
+
+def set_general_graphene_nanoribbon_rashba(self, 
+            width, length, twist, k, Anderson=-1, λex=0.4, λR=0.3):
+    #  _ 
+    # / \   Graphene unit cell orientation
+    # \_/
+
+    # primitive vectors
+    a1 = np.sqrt(3)*np.array([np.sqrt(3)/2, 0.5])
+    a2 = np.sqrt(3)*np.array([0,1])
+    prims = [a1,  a2]
+
+    orbs = [           "Au",            "Ad",            "Bu",            "Bd"]
+    pos  = [np.array([0,0]), np.array([0,0]), np.array([1,0]), np.array([1,0])]
+    No = len(orbs)
+
+    # Build the hoppings from the tight-binding functionality
+    φ = 0
+    t = -1
+    hops = []
+    hops += bs.graphene(t)
+    hops += bs.rashba_phase(λR, φ)
+    hops += bs.magnetization(λex)
+    
+    
+    duplicator = bs.hop_utils()
+
+    duplicator.set_prims(prims)
+    duplicator.set_orbs(orbs, pos)
+    duplicator.set_hops(hops)
+
+    # join unit cell [0,0] with [1,0]
+    join = [1,0]
+
+    # New primitive vectors
+    A1 = [2,-1]
+    A2 = [0, 1]
+
+    duplicator.set_duplication_rules(join, A1, A2)
+    duplicator.duplicate_orbs()
+    duplicator.duplicate_hops()
+
+    new_A1 = A1[0]*a1 + A1[1]*a2
+    new_A2 = A2[0]*a1 + A2[1]*a2
+    new_prims = [new_A1, new_A2]
+
+    ham_struct = [duplicator.new_orbs_dic, duplicator.new_pos, new_prims, duplicator.new_hops]
+    
+    self.set_system(ham_struct, width, length, twist, k)
+
+    C = self.C
+    S = self.S
+
+    # if Anderson disorder was not defined
+    if type(Anderson) == int:
+        Anderson = np.zeros([C,S])
+    
+    self.Anderson = Anderson
+    self.build_spin2() # basis ordering is not the usual. Pauli matrices is also different
+    self.build_vels_hsample()
+
+
+# In[11]:
+
+
+def set_jaroslav(
+    self, width, length, twist, k,t, Δ, λIA, λIB, λR, φ, Anderson=-1):
+
+    #  _ 
+    # / \   Graphene unit cell orientation
+    # \_/
+
+    # primitive vectors
+    a1 = np.sqrt(3)*np.array([np.sqrt(3)/2, 0.5])
+    a2 = np.sqrt(3)*np.array([0,1])
+    prims = [a1,  a2]
+
+    orbs = [           "Au",            "Ad",            "Bu",            "Bd"]
+    pos  = [np.array([0,0]), np.array([0,0]), np.array([1,0]), np.array([1,0])]
+    No = len(orbs)
+
+    # Build the hoppings from the tight-binding functionality
+    hops = bs.Jaroslav(t,Δ,λIA,λIB,λR,φ)    
+    
+    duplicator = bs.hop_utils()
+
+    duplicator.set_prims(prims)
+    duplicator.set_orbs(orbs, pos)
+    duplicator.set_hops(hops)
+
+    # join unit cell [0,0] with [1,0]
+    join = [1,0]
+
+    # New primitive vectors
+    A1 = [2,-1]
+    A2 = [0, 1]
+
+    duplicator.set_duplication_rules(join, A1, A2)
+    duplicator.duplicate_orbs()
+    duplicator.duplicate_hops()
+    # newhops_nocc = bs.remove_cc(duplicator.new_hops)
+    newhops_nocc = duplicator.new_hops.copy()
+
+    new_A1 = A1[0]*a1 + A1[1]*a2
+    new_A2 = A2[0]*a1 + A2[1]*a2
+    new_prims = [new_A1, new_A2]
+
+    ham_struct = [duplicator.new_orbs_dic, duplicator.new_pos, new_prims, newhops_nocc]
+    
+    
+
+    self.set_system(ham_struct, width, length, twist, k)
+
+    C = self.C
+    S = self.S
+
+    # if Anderson disorder was not defined
+    if type(Anderson) == int:
+        Anderson = np.zeros([C,S])
+    
+    self.Anderson = Anderson
+    self.build_spin2() # basis ordering is not the usual. Pauli matrices is also different
+    self.build_vels_hsample()
+
+
+# In[12]:
+
+
+def set_branislav(
+    self, width, length, twist, k,t, λR, λex, Anderson=-1):
+
+    #  _ 
+    # / \   Graphene unit cell orientation
+    # \_/
+
+    # primitive vectors
+    a1 = np.sqrt(3)*np.array([np.sqrt(3)/2, 0.5])
+    a2 = np.sqrt(3)*np.array([0,1])
+    prims = [a1,  a2]
+
+    orbs = [           "Au",            "Ad",            "Bu",            "Bd"]
+    pos  = [np.array([0,0]), np.array([0,0]), np.array([1,0]), np.array([1,0])]
+    No = len(orbs)
+
+    # Build the hoppings from the tight-binding functionality
+    
+    φ = 0
+    hops = []
+    hops += bs.graphene(t)
+    hops += bs.rashba_phase(λR, φ)
+    hops += bs.magnetization(λex)
+    
+    duplicator = bs.hop_utils()
+
+    duplicator.set_prims(prims)
+    duplicator.set_orbs(orbs, pos)
+    duplicator.set_hops(hops)
+
+    # join unit cell [0,0] with [1,0]
+    join = [1,0]
+
+    # New primitive vectors
+    A1 = [2,-1]
+    A2 = [0, 1]
+
+    duplicator.set_duplication_rules(join, A1, A2)
+    duplicator.duplicate_orbs()
+    duplicator.duplicate_hops()
+
+    new_A1 = A1[0]*a1 + A1[1]*a2
+    new_A2 = A2[0]*a1 + A2[1]*a2
+    new_prims = [new_A1, new_A2]
+
+    ham_struct = [duplicator.new_orbs_dic, duplicator.new_pos, new_prims, duplicator.new_hops]
+    
+    
+
+    self.set_system(ham_struct, width, length, twist, k)
+
+    C = self.C
+    S = self.S
+
+    # if Anderson disorder was not defined
+    if type(Anderson) == int:
+        Anderson = np.zeros([C,S])
+    
+    self.Anderson = Anderson
+    self.build_spin2() # basis ordering is not the usual. Pauli matrices is also different
+    self.build_vels_hsample()
+
+
+# ## 1D TB
+
+# In[13]:
+
+
+# just use 2D TB with width=1
+
+
+# ## 2D TB nanoribbon
+
+# In[14]:
+
+
+def ham_2dtb(W, hops, twist=False, k=0):
+    No = 1
+    t = hops[0]
+    C = No*W
+    
+    
+    h  = np.zeros([C,C], dtype=complex)
+    for j in range(W):
+        
+        
+        # Connect to upper boundary
+        if j<W-1:
+            # spin up
+            h[j, j+No] = t
+            h[j+No, j] = t
+            
+        
+        
+        # Imposing k-point sampling
+        if twist and j == W-1:
+            # spin up
+            h[j, 0] = t*np.exp( 1j*k)
+            h[0, j] = t*np.exp(-1j*k)
+            
+               
+    return h
+
+def hop_2dtb(W, hops, twist=False, k=0):
+    No = 1
+    t = hops[0]
+    C = No*W
+    
+    u = np.zeros([C,C], dtype=complex)
+    
+    for j in range(W):        
+        u[j,j] = t
+        
+    return u
+
+
+# In[15]:
+
+
+def set_2dtb_nanoribbon(self, width, length, twist, k, ander=0.0):
+    # primitive vectors
+    a_cc = 1.0
+    a1 = np.array([1.0, 0.0])*a_cc
+    a2 = np.array([0.0, 1.0])*a_cc
+    prim = [a1, a2]
+
+    # orbital positions
+    A = np.array([0.0, 0.0])
+    
+    pos = [A*1.0]
+
+    # Geometry parameters
+    W = width
+    S = length
+    No = 1
+    C = No*W
+
+    self.W = W
+    self.S = S
+    self.No = No
+    self.C = C
+    self.pos = pos
+    self.prim = prim
+    
+    # Hopping parameters
+    t = -1
+    hops = [t]
+    
+
+    
+
+    # Setting the Hamiltonian
+    h = ham_2dtb(W, hops, twist, k)
+    u = hop_2dtb(W, hops, twist, k)
+    ut = u.transpose().conjugate()
+    Anderson = np.random.random([C,S])*ander
+
+
+    # set the relevant quantities
+    self.set_h(h,u)
+    self.Anderson = Anderson
+
+
+# ## TB2D larger UC
+
+# In[16]:
+
+
+def ham_2dtb_large(W, hops, twist=False, k=0):
+    No = 2
+    t = hops[0]
+    C = No*W
+    
+    
+    h  = np.zeros([C,C], dtype=complex)
+    for j in range(W):
+        
+        A = j*No
+        B = A+1
+        
+        h[A, B] = t
+        h[B, A] = t
+        
+        # Connect to upper boundary
+        if j<W-1:
+            h[A, A+No] = t
+            h[A+No, A] = t
+            
+            h[B, B+No] = t
+            h[B+No, B] = t
+            
+        
+        
+        # Imposing k-point sampling
+        if twist and j == W-1:
+            h[A, 0] = t*np.exp( 1j*k)
+            h[0, A] = t*np.exp(-1j*k)
+            
+            h[B, 1] = t*np.exp( 1j*k)
+            h[1, B] = t*np.exp(-1j*k)
+            
+               
+    return h
+
+def hop_2dtb_large(W, hops, twist=False, k=0):
+    No = 2
+    t = hops[0]
+    C = No*W
+    
+    u = np.zeros([C,C], dtype=complex)
+    
+    for j in range(W):  
+        A = j*No
+        B = A+1
+        u[B,A] = t
+        
+        
+    return u
+
+
+# In[17]:
+
+
+def set_2dtb_nanoribbon_large(self, width, length, twist, k, ander=0.0):
+    # primitive vectors
+    a_cc = 1.0
+    a1 = np.array([2.0, 0.0])*a_cc
+    a2 = np.array([0.0, 1.0])*a_cc
+    prim = [a1, a2]
+
+    # orbital positions
+    A = np.array([0.0, 0.0])
+    B = np.array([1.0, 0.0])
+    
+    pos = [A*1.0, B*1.0]
+
+    # Geometry parameters
+    W = width
+    S = length
+    No = 2
+    C = No*W
+
+    self.W = W
+    self.S = S
+    self.No = No
+    self.C = C
+    self.pos = pos
+    self.prim = prim
+    
+    # Hopping parameters
+    t = -1
+    hops = [t]
+    
+
+    
+
+    # Setting the Hamiltonian
+    h = ham_2dtb_large(W, hops, twist, k)
+    u = hop_2dtb_large(W, hops, twist, k)
+    ut = u.transpose().conjugate()
+    Anderson = np.random.random([C,S])*ander
+
+
+    # set the relevant quantities
+    self.set_h(h,u)
+    self.Anderson = Anderson
+
+
 # # Green's functions with RGF
+# All the Green's functions which are required for the physical quantities
 
 # ## Lead surface Green's functions
 
-# In[14]:
+# In[18]:
 
 
 # @jit(nopython=True)
@@ -1637,7 +865,7 @@ def build_surfaces(self,zs):
 # ## Surface general
 # Surface Green's function that is not at the lead
 
-# In[15]:
+# In[19]:
 
 
 def build_surface_GL(self, zs, n):
@@ -1673,7 +901,7 @@ def build_surface_GR(self, zs, n):
 
 # ## Surface with drop
 
-# In[16]:
+# In[20]:
 
 
 def build_surfacedrop_GL(self, zs, n, dV):
@@ -1726,7 +954,7 @@ def build_surfacedrop_GR(self, zs, n, dV):
 
 # ## Local Green $G_{nn}$
 
-# In[17]:
+# In[21]:
 
 
 def get_Gnn(self, zs, n):
@@ -1751,7 +979,7 @@ def get_Gnn(self, zs, n):
 
 # ## Local Green $G_{nn}$ drop
 
-# In[18]:
+# In[22]:
 
 
 def get_Gnn_drop(self, zs, n, dV):
@@ -1785,7 +1013,7 @@ def get_Gnn_drop(self, zs, n, dV):
 
 # ## G_0n
 
-# In[19]:
+# In[23]:
 
 
 def get_G0n(self, zs, n):
@@ -1831,7 +1059,7 @@ def get_G0n(self, zs, n):
 
 # ## G_n,N
 
-# In[20]:
+# In[24]:
 
 
 def get_GnNp1(self, zs, n):
@@ -1877,7 +1105,7 @@ def get_GnNp1(self, zs, n):
 
 # ## Local green large
 
-# In[21]:
+# In[25]:
 
 
 def get_green_large(self, zs):
@@ -1918,19 +1146,7 @@ def get_green_large(self, zs):
 
 # ## Local green large drop
 
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[22]:
+# In[26]:
 
 
 def get_green_large_drop(self, zs, dV):
@@ -1990,93 +1206,9 @@ def get_green_large_drop(self, zs, dV):
     return green, dropmat
 
 
-# In[23]:
+# # Ozaki integration
 
-
-# def get_Gnn_drop(self, zs, n, dV):
-    
-#     assert self.ham_defined == True
-#     C = self.C
-#     S = self.S
-#     NZ = len(zs) 
-
-#     length = S*self.prim[0][0] - 0.5
-    
-#     # Calculate surface Green's functions next to the slice
-#     GL_RGF = self.build_surfacedrop_GL(zs,n, dV)
-#     GR_RGF = self.build_surfacedrop_GR(zs,n, dV)
-
-#     # Local Green's function
-    
-#     pos = self.X[n,:]
-#     pot = dV/2.0*(1 - 2*pos/length)
-#     drop = np.diag(pot)
-#     hi = self.h + np.diag(self.Anderson[:,n]) + drop
-    
-#     # print(pot)
-    
-#     Gnn_RGF = np.zeros([C,C,NZ], dtype=complex)
-#     for zz, z in enumerate(zs):
-#         Gnn_RGF[:,:,zz] = np.linalg.inv(z*np.eye(C) - hi - self.ut@GL_RGF[:,:,zz]@self.u - self.u@GR_RGF[:,:,zz]@self.ut)
-
-#     return Gnn_RGF
-
-
-# def build_surfacedrop_GL(self, zs, n, dV):
-#     C = self.C
-#     S = self.S
-
-#     GL_RGF = self.build_surfaceL(zs+dV/2)*1.0
-    
-#     length = S*self.prim[0][0]-0.5
-    
-#     for i in range(n):
-#         pos = self.X[i,:]
-#         pot = dV/2.0*(1 - 2*pos/length)
-#         drop = np.diag(pot)
-        
-#         # print(pot)
-#         hi = self.h + np.diag(self.Anderson[:,i]) + drop
-#         for zz, z in enumerate(zs):
-#             GL_RGF[:,:,zz] = np.linalg.inv(z*np.eye(C)-hi-self.ut@GL_RGF[:,:,zz]@self.u)
-            
-#     return GL_RGF
-
-
-# def build_surfacedrop_GR(self, zs, n, dV):
-#     # up to n+1 inclusive
-#     C = self.C
-#     S = self.S
-#     GR_RGF = self.build_surfaceR(zs-dV/2)*1.0
-    
-#     # Only strictly true for graphene nanoribbon - the 0.5 term changes
-#     length = S*self.prim[0][0] - 0.5
-    
-    
-#     # Go from S-1 to n+1 in decreasing order
-#     # example S=6 and n=2 would be iterated as 5->4->3
-#     for i in range(S-1,n, -1):
-#         pos = self.X[i,:]
-#         pot = dV/2.0*(1 - 2*pos/length)
-#         drop = np.diag(pot)
-#         # print(pot)
-        
-#         hi = self.h + np.diag(self.Anderson[:,i]) + drop
-#         for zz, z in enumerate(zs):
-#             GR_RGF[:,:,zz] = np.linalg.inv(z*np.eye(C)-hi-self.u@GR_RGF[:,:,zz]@self.ut)
-            
-#     return GR_RGF
-
-
-# In[ ]:
-
-
-
-
-
-# # Ozaki
-
-# In[24]:
+# In[27]:
 
 
 def get_ozaki(N):
@@ -2131,23 +1263,12 @@ def ozaki_integrator(self, f,N=200):
     return np.sum(terms)
 
 
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
 # # Physical quantities
+# Implementation of the formulas that are used to calculate transport properties (Kubo's formula, Keldysh, Landauer)
 
 # ## Landauer
 
-# In[25]:
+# In[28]:
 
 
 def get_landauer(self, zs):
@@ -2225,7 +1346,7 @@ def get_landauer(self, zs):
 
 # ## Kubo-Greenwood
 
-# In[26]:
+# In[29]:
 
 
 def kubo_greenwood(self, zs, op1, op2):
@@ -2247,7 +1368,7 @@ def kubo_greenwood(self, zs, op1, op2):
 
 # ## Kubo-Bastin
 
-# In[27]:
+# In[30]:
 
 
 def kubo_bastin(self, zs, op, de):
@@ -2315,7 +1436,7 @@ def kubo_bastin(self, zs, op, de):
 
 # ## Kubo sea
 
-# In[28]:
+# In[31]:
 
 
 def kubo_sea_old(self, zs, op, de):
@@ -2323,9 +1444,9 @@ def kubo_sea_old(self, zs, op, de):
     # for several things
     NE = len(zs)
     
-    S = self.S
-    C = self.C
-    W = self.W
+    S  = self.S
+    C  = self.C
+    W  = self.W
     No = self.No    
 
     # Hopping from sample to left lead
@@ -2382,7 +1503,7 @@ def kubo_sea_old(self, zs, op, de):
     return tr#,gz
 
 
-# In[ ]:
+# In[32]:
 
 
 def kubo_sea2(self, zs, op, de):
@@ -2412,7 +1533,7 @@ def kubo_sea2(self, zs, op, de):
     return tr
 
 
-# In[5]:
+# In[33]:
 
 
 def kubo_sea(self, zs, op, de):
@@ -2439,7 +1560,7 @@ def kubo_sea(self, zs, op, de):
 
 # ## Kubo Streda II (analytic sea)
 
-# In[ ]:
+# In[34]:
 
 
 def kubo_streda_II(self, zs, op, de):
@@ -2463,7 +1584,7 @@ def kubo_streda_II(self, zs, op, de):
     return tr
 
 
-# In[ ]:
+# In[35]:
 
 
 def kubozaki_streda(self, mus, op, de, beta = 600, Nozaki=400):
@@ -2492,7 +1613,7 @@ def kubozaki_streda(self, mus, op, de, beta = 600, Nozaki=400):
 
 # ## Kubo overlap
 
-# In[5]:
+# In[36]:
 
 
 def kubo_overlap(self, zs, op):    
@@ -2510,21 +1631,9 @@ def kubo_overlap(self, zs, op):
     return tr
 
 
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
 # ## Keldysh
 
-# In[30]:
+# In[37]:
 
 
 def keldysh(self, zs,n, op):
@@ -2588,7 +1697,7 @@ def keldysh(self, zs,n, op):
 
 # ## Keldysh sea (with drop)
 
-# In[31]:
+# In[38]:
 
 
 def keldysh_sea_drop(self, mus, n, op, dV, eta, beta = 600, Nozaki=400):
@@ -2629,10 +1738,10 @@ def keldysh_sea_drop(self, mus, n, op, dV, eta, beta = 600, Nozaki=400):
     return tr
 
 
-# # Physical quantities wrappers
+# ## Physical quantities wrappers
 # Returns the correct normalization constants, and performs extra simulations to check for convergence
 
-# In[ ]:
+# In[39]:
 
 
 def get_keld_sea(self, energies, n, op_local, dV, eta, beta, Nozaki):
@@ -2725,15 +1834,10 @@ def get_kubo_greenwood(self, zs, n, op_local):
     
 
 
-# In[ ]:
-
-
-
-
-
 # # Class
+# Joins all this functionality into a class
 
-# In[32]:
+# In[40]:
 
 
 class rgf:
@@ -2810,7 +1914,7 @@ rgf.get_kubo_overlap   = get_kubo_overlap
 rgf.get_keld_surface   = get_keld_surface
 rgf.get_keld_sea       = get_keld_sea
 
-rgf.set_graphene_nanoribbon_rashba = set_graphene_nanoribbon_rashba
+# rgf.set_graphene_nanoribbon_rashba = set_graphene_nanoribbon_rashba
 rgf.set_2dtb_nanoribbon = set_2dtb_nanoribbon
 rgf.set_2dtb_nanoribbon_large = set_2dtb_nanoribbon_large
 
@@ -2826,197 +1930,4 @@ rgf.build_vels_hsample = build_vels_hsample
 rgf.generate_hamiltonian = generate_hamiltonian
 rgf.hamiltonian_add_drop = hamiltonian_add_drop
 rgf.get_eigs = get_eigs
-
-
-# In[33]:
-
-
-def cond(mu, ens, integrand):
-    NE = len(ens)
-    
-    ff = integrand*1.0
-    for ee,e in enumerate(ens):
-        if e>=mu:
-            ff[ee] = 0.0
-            
-    soma = 0.0
-    for ee in range(NE-1):
-        dE = ens[ee+1] - ens[ee]
-        soma += (ff[ee]+ff[ee+1])/2*dE
-    return soma
-    
-
-
-# # Unit cell duplicator
-
-# In[ ]:
-
-
-def complete_cc(hop_list):
-    # Create all the complex conjugate hoppings if they do not exist already
-    all_hops = hop_list.copy()
-    for hop in hop_list:
-        o1,o2,n,m,t = hop
-        cc = [o2,o1,-n,-m,np.conj(t)]
-
-        if cc not in all_hops:
-            all_hops.append(cc)
-
-    return all_hops
-
-
-class hop_utils:
-    hops = []
-    orbs = []
-    prims = []
-    pos = [] # orbital positions
-    rules = False
-    
-    
-    def set_prims(self, prim_vecs):
-        self.prims = prim_vecs.copy()
-    
-    def set_orbs(self, orb_names, orb_pos):
-        self.pos = orb_pos.copy()
-        self.orbs = orb_names.copy()
-        self.No = len(orb_names)
-        self.orbs_dic = {self.orbs[i]:i for i in range(self.No)}
-        
-        
-        
-
-    
-    def set_hops(self, hop_list):
-        self.hops = complete_cc(hop_list)
-        
-
-
-# In[ ]:
-
-
-def set_duplication_rules(self, join, A1, A2):
-    self.join = join
-    self.new_prims = [A1,A2]
-    self.rules = True
-    
-
-    
-def duplicate_orbs(self):
-    if not self.rules:
-        print("Duplication rules not set")
-        return 0
-    
-    a1, a2 = self.prims
-    join = self.join
-    A1, A2 = self.new_prims
-    # join: unit cell to which to join
-    # A1, A2: new primitive vectors
-
-    
-
-
-    # Create the new orbitals
-    new_orbs = []
-    new_pos = []
-    for orb, r in zip(self.orbs, self.pos):
-        o1 = orb + "1"
-        new_orbs.append(o1)    
-        new_pos.append(r)
-
-    # Create the new positions
-    for orb, r in zip(self.orbs, self.pos):
-        o2 = orb + "2"
-        new_orbs.append(o2)
-        new_pos.append(r + a1*join[0] + a2*join[1])
-
-    # print(new_orbs)
-    # print(new_pos)
-    new_No = len(new_orbs)
-    new_orbs_dic = {new_orbs[i]:i for i in range(new_No)}
-
-    self.new_orbs = new_orbs.copy()
-    self.new_pos = new_pos.copy()
-    self.new_orbs_dic = new_orbs_dic.copy()
-    self.new_No = new_No
-
-
-# In[ ]:
-
-
-def duplicate_hops(self):
-    if not self.rules:
-        print("Duplication rules not set")
-        return 0
-    
-    
-    A1, A2 = self.new_prims
-    hops = self.hops
-    # join: unit cell to which to join
-    # A1, A2: new primitive vectors
-    
-    α1 = A1[0]; α2 = A1[1]; α3 = A2[0]; α4 = A2[1]
-    det = α1*α4 - α2*α3
-    # print("det:", det)
-
-    # Generate the new list of hoppings
-    new_hops = []
-    for hop in hops:
-        o1,o2,n,m,t = hop
-
-        for d in [0,1]:
-            new_n = n+d
-            # new_hop = [new_o1, new_o2, new_n, m, t]
-
-            new_o1 = o1 + str(d+1)
-
-            # print("original hop: ", hop)
-            # print("creating new hop: ", [new_o1, o2, new_n, m])
-
-            # check divisibility
-            α = 0
-            β = 0
-            found = False
-            for α_test in [0,1]:
-                for β_test in [0]:
-                    if found: continue
-
-                    num1 =  α4*(new_n-α_test) - α3*(m-β_test)
-                    num2 = -α2*(new_n-α_test) + α1*(m-β_test)
-
-                    nA1 = num1//det
-                    nA2 = num2//det
-                    div1 = num1%det == 0
-                    div2 = num2%det == 0
-                    # print("testing α and β:", α_test,β_test)
-                    if div1 and div2:
-                        found = True
-                        α = α_test
-                        β = β_test
-
-            if not found: print("ERROR")
-            # print("The values of α and β that work are: ", α,β)
-
-            new_o2 = o2 + str(α+1)
-            new_hop = [new_o1, new_o2, nA1, nA2, t]
-            # print("---- hop in new primitive vectors: ", new_hop)
-
-            new_hops.append(new_hop)
-            # print("")
-    self.new_hops = new_hops.copy()
-    
-hop_utils.duplicate_hops = duplicate_hops
-hop_utils.set_duplication_rules = set_duplication_rules
-hop_utils.duplicate_orbs = duplicate_orbs
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
 
