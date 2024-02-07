@@ -5,7 +5,7 @@
 # 
 # Code to implement RGF in 2D. This notebook is used to produce a python script which contains the library
 
-# In[1]:
+# In[2]:
 
 
 # to convert to script run
@@ -13,14 +13,14 @@ if __name__== "__main__":
     get_ipython().system('jupyter-nbconvert --to script RGF_src.ipynb')
 
 
-# In[2]:
+# In[3]:
 
 
 from multiprocessing import Pool
 import numpy as np
 import sys
 
-sys.path.append('/home/simao/codes/tight-binding-test/src/')
+sys.path.append('../tight-binding-test/src/')
 import band_structure as bs
 
 
