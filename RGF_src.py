@@ -5,7 +5,7 @@
 # 
 # Code to implement RGF in 2D. This notebook is used to produce a python script which contains the library
 
-# In[2]:
+# In[11]:
 
 
 # to convert to script run
@@ -13,7 +13,7 @@ if __name__== "__main__":
     get_ipython().system('jupyter-nbconvert --to script RGF_src.ipynb')
 
 
-# In[3]:
+# In[10]:
 
 
 from multiprocessing import Pool
@@ -21,6 +21,7 @@ import numpy as np
 import sys
 
 sys.path.append('../tight-binding-test/src/')
+    
 import band_structure as bs
 
 
@@ -320,7 +321,7 @@ def hamiltonian_add_drop(self, dV):
     xmax = np.max(self.X)
     size = xmax - xmin  # extent of the drop
 
-    print(xmin, xmax)
+    #print(xmin, xmax)
 
     Xp = (self.X - xmin)/size
 
@@ -1600,7 +1601,7 @@ def kubozaki_streda(self, mus, op, de, beta = 600, Nozaki=400):
     NE = len(mus)
     tr = np.zeros(NE, dtype=complex)
     for mm,mu in enumerate(mus):
-        print(f"mu {mu:2.2f}",end="")
+        #print(f"mu {mu:2.2f}",end="")
         
         def f1(x): return f(mu,x)
         
@@ -1720,7 +1721,7 @@ def keldysh_sea_drop(self, mus, n, op, dV, eta, beta = 600, Nozaki=400):
     NE = len(mus)
     tr = np.zeros(NE, dtype=complex)
     for mm,mu in enumerate(mus):
-        print(f"mu {mu:2.2f}",end="")
+        #print(f"mu {mu:2.2f}",end="")
         
         def fL(x): return f( dV/2 + mu,x)
         def fR(x): return f(-dV/2 + mu,x)
