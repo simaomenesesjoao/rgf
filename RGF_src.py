@@ -5,7 +5,7 @@
 # 
 # Code to implement RGF in 2D. This notebook is used to produce a python script which contains the library
 
-# In[11]:
+# In[12]:
 
 
 # to convert to script run
@@ -21,6 +21,7 @@ import numpy as np
 import sys
 
 sys.path.append('../tight-binding-test/src/')
+sys.path.append('tight-binding-test/src/')
     
 import band_structure as bs
 
