@@ -5,7 +5,7 @@
 # 
 # Code to implement RGF in 2D. This notebook is used to produce a python script which contains the library
 
-# In[12]:
+# In[2]:
 
 
 # to convert to script run
@@ -182,7 +182,7 @@ def build_spin2(self):
       
 
 
-# In[6]:
+# In[1]:
 
 
 def build_vels_hsample(self):
@@ -240,8 +240,31 @@ def build_vels_hsample(self):
     
     # velocity operator
     self.vx = (X@H_sample - H_sample@X)/1.0j
-    self.vy = (Y@H_sample - H_sample@Y)/1.0j
+    self.vy = H_sample*0.0
     self.H_sample = H_sample*1.0
+
+
+
+    for i in range(S):
+        for j in range(W):
+            for o in range(No):
+                r = self.prim[0]*i + self.prim[1]*j + self.pos[o]
+                m = j*No + o
+                n = i*C + m
+
+                for ip in range(max(0,i-1), min(S,i+2)):
+                    for jp in range(j-1, j+2):
+                        for op in range(No):
+                            rp = self.prim[0]*ip + self.prim[1]*jp + self.pos[op]
+
+                            jpp = (jp+W)%W
+                            mp = jpp*No + op
+                            npp = ip*C + mp
+
+                            dy = rp[1] - r[1]
+
+                            self.vy[n,npp] = H_sample[n,npp]*dy/1.0j
+
     
 
 
